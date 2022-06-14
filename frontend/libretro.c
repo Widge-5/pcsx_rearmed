@@ -2448,8 +2448,8 @@ static void update_input_guncon(int port, int ret)
       int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
       int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 	   
-      in_analog_left[port][0] = (gunx * GunconAdjustRatioX) + (GunconAdjustX * 655);
-      in_analog_left[port][1] = (guny * GunconAdjustRatioY) + (GunconAdjustY * 655);
+      in_analog_left[port][0] = (gunx * 0x7FFF) / (0x7FFF << 1);
+      in_analog_left[port][1] = (guny * 0x7FFF) / (0x7FFF << 1);
    }
 	
    //GUNCON has 3 controls, Trigger,A,B which equal Circle,Start,Cross
