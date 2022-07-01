@@ -665,10 +665,10 @@ void _PADstartPoll(PadDataS *pad) {
 			int absY = (pad->absoluteY / 64) + 512;
 
 			//Keep within limits
-			if (absX > 1023) absX = 1023;
-			if (absX < 0) absX = 0;
-			if (absY > 1023) absY = 1023;
-			if (absY < 0) absY = 0;
+			//if (absX > 1023) absX = 1023;
+			//if (absX < 0) absX = 0;
+			//if (absY > 1023) absY = 1023;
+			//if (absY < 0) absY = 0;
 
 			stdpar[4] = 0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10);
 			stdpar[5] = (0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10)) >> 8;
