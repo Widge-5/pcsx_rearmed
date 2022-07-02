@@ -626,6 +626,7 @@ void vibrate(int padIndex){
 
 
 //Build response for 0x42 request Pad in port
+extern int vout_width, vout_height;
 void _PADstartPoll(PadDataS *pad) {
 	switch (pad->controllerType) {
 		case PSE_PAD_TYPE_MOUSE:
@@ -657,8 +658,8 @@ void _PADstartPoll(PadDataS *pad) {
 			stdpar[3] = pad->buttonStatus >> 8;
 
 			//This code assumes an X resolution of 256 and a Y resolution of 240
-			int xres = 256;
-			int yres = 240;
+			int xres = vout_width;
+			int yres = vout_height;
 
 			//The code wants an input range for x and y of 0-1023 we passed in -32767 -> 32767
 			int absX = (pad->absoluteX / 64) + 512;

@@ -79,7 +79,7 @@ static unsigned msg_interface_version = 0;
 
 static void *vout_buf;
 static void *vout_buf_ptr;
-static int vout_width, vout_height;
+int vout_width, vout_height;
 static int vout_doffs_old, vout_fb_dirty;
 static bool vout_can_dupe;
 static bool duping_enable;
