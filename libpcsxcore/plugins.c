@@ -671,8 +671,12 @@ void _PADstartPoll(PadDataS *pad) {
 			if (absY > 1023) absY = 1023;
 			if (absY < 0) absY = 0;
 
-			stdpar[4] = 0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10);
-			stdpar[5] = (0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10)) >> 8;
+			//stdpar[4] = 0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10);
+			//stdpar[5] = (0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10)) >> 8;
+			//stdpar[6] = 0x20 + (yres * absY >> 10);
+			//stdpar[7] = (0x20 + (yres * absY >> 10)) >> 8;
+			stdpar[4] = 0x5a + (356 * absX >> 10);
+			stdpar[5] = (0x5a + (356 * absX >> 10)) >> 8;
 			stdpar[6] = 0x20 + (yres * absY >> 10);
 			stdpar[7] = (0x20 + (yres * absY >> 10)) >> 8;
 
