@@ -79,7 +79,7 @@ static unsigned msg_interface_version = 0;
 
 static void *vout_buf;
 static void *vout_buf_ptr;
-static int vout_width, vout_height;
+int vout_width, vout_height;
 static int vout_doffs_old, vout_fb_dirty;
 static bool vout_can_dupe;
 static bool duping_enable;
@@ -2438,20 +2438,26 @@ static void update_input_guncon(int port, int ret)
    //1% is about 655
    //Use the left analog stick field to store the absolute coordinates
    //Fix cursor to top-left when gun is detected as "offscreen"
-   if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN) || input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD))
+/* if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN) || input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD))
    {
-      in_analog_left[port][0] = -32767;
-      in_analog_left[port][1] = -32767;
+      in_analog_left[port][0] = 0;
+      in_analog_left[port][1] = 0;
    }
    else
    {
       int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
       int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 	   
-      in_analog_left[port][0] = (gunx * GunconAdjustRatioX) + (GunconAdjustX * 655);
-      in_analog_left[port][1] = (guny * GunconAdjustRatioY) + (GunconAdjustY * 655);
+      in_analog_left[port][0] = (gunx + 32767) * 1024 / 65534;
+      in_analog_left[port][1] = (guny + 32767) * 1024 / 65534;
    }
-	
+*/
+      int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
+      int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
+	   
+      in_analog_left[port][0] = (gunx + 32767) * vout_width / 65534;
+      in_analog_left[port][1] = (guny + 32767) * vout_height / 65534;
+
    //GUNCON has 3 controls, Trigger,A,B which equal Circle,Start,Cross
 
    // Trigger
