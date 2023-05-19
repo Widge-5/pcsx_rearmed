@@ -551,12 +551,12 @@ void draw_crosshair(int x, int y)
    uint32_t w = 0xFFFFFFFF;
    uint32_t b = 0x00000000;
 
-   for (int i = MAX(-CROSSHAIR_SIZE, -x); i <= MIN(CROSSHAIR_SIZE, vout_width - x); i++) {
+   for (int i = MAX(-CROSSHAIR_SIZE, -x); i <= MIN(CROSSHAIR_SIZE, 256 - x); i++) {
      //vout_buf_ptr[vout_width * y + x + i] = i % 2 == 0 ? w : b;
      w;
    }
 
-   for (int i = MAX(-CROSSHAIR_SIZE, -y); i <= MIN(CROSSHAIR_SIZE, vout_height - y); i++) {
+   for (int i = MAX(-CROSSHAIR_SIZE, -y); i <= MIN(CROSSHAIR_SIZE, 240 - y); i++) {
      //vout_buf_ptr[vout_width * (y + i) + x] = i % 2 == 0 ? w : b;
      w;
    }
@@ -2471,13 +2471,13 @@ static void update_input_guncon(int port, int ret)
    if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_B))
       in_keystate[port] |= (1 << DKEY_CROSS);
 
-   if (in_analog_left[0][0] > vout_width) { crossx = vout_width; }
+   if (in_analog_left[0][0] > 1024) { crossx = 1024; }
    else if (in_analog_left[0][0] < 0) { crossx = 0; }
-   else { crossx = in_analog_left[0][0]; }
+   else { crossx = ((in_analog_left[0][0] + 32767) / 65534) * 1024; }
 
-   if (in_analog_left[0][1] > vout_height) { crossy = vout_height; }
+   if (in_analog_left[0][1] > 1024) { crossy = 1024; }
    else if (in_analog_left[0][1] < 0) { crossy = 0; }
-   else { crossy = in_analog_left[0][1]; }   
+   else { crossy = ((in_analog_left[0][1] + 32767) / 65534) * 1024; }   
 }
 
 static void update_input_negcon(int port, int ret)
