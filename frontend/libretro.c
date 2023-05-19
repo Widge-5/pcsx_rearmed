@@ -541,6 +541,27 @@ void out_register_libretro(struct out_driver *drv)
    drv->feed   = snd_feed;
 }
 
+int crossx = 0;
+int crossy = 0;
+
+#define CROSSHAIR_SIZE 3
+
+void draw_crosshair(int x, int y)
+{
+   uint32_t w = 0xFFFFFFFF;
+   uint32_t b = 0x00000000;
+
+   for (int i = MAX(-CROSSHAIR_SIZE, -x); i <= MIN(CROSSHAIR_SIZE, vout_width - x); i++) {
+     //vout_buf_ptr[vout_width * y + x + i] = i % 2 == 0 ? w : b;
+     w;
+   }
+
+   for (int i = MAX(-CROSSHAIR_SIZE, -y); i <= MIN(CROSSHAIR_SIZE, vout_height - y); i++) {
+     //vout_buf_ptr[vout_width * (y + i) + x] = i % 2 == 0 ? w : b;
+     w;
+   }
+}
+
 #define RETRO_DEVICE_PSE_STANDARD   RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD,   0)
 #define RETRO_DEVICE_PSE_ANALOG     RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   0)
 #define RETRO_DEVICE_PSE_DUALSHOCK  RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   1)
@@ -2449,7 +2470,14 @@ static void update_input_guncon(int port, int ret)
    // B
    if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_B))
       in_keystate[port] |= (1 << DKEY_CROSS);
-	   
+
+   if (in_analog_left[0][0] > vout_width) { crossx = vout_width; }
+   else if (in_analog_left[0][0] < 0) { crossx = 0; }
+   else { crossx = in_analog_left[0][0]; }
+
+   if (in_analog_left[0][1] > vout_height) { crossy = vout_height; }
+   else if (in_analog_left[0][1] < 0) { crossy = 0; }
+   else { crossy = in_analog_left[0][1]; }   
 }
 
 static void update_input_negcon(int port, int ret)
@@ -2769,6 +2797,8 @@ void retro_run(void)
    vout_fb_dirty = 0;
 
    set_vout_fb();
+
+   draw_crosshair(crossx, crossy);
 }
 
 static bool try_use_bios(const char *path)
