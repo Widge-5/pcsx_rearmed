@@ -541,12 +541,13 @@ void out_register_libretro(struct out_driver *drv)
    drv->feed   = snd_feed;
 }
 
-#define RETRO_DEVICE_PSE_STANDARD   RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD,   0)
-#define RETRO_DEVICE_PSE_ANALOG     RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   0)
-#define RETRO_DEVICE_PSE_DUALSHOCK  RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   1)
-#define RETRO_DEVICE_PSE_NEGCON     RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   2)
-#define RETRO_DEVICE_PSE_GUNCON     RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 0)
-#define RETRO_DEVICE_PSE_MOUSE      RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE,    0)
+#define RETRO_DEVICE_PSE_STANDARD         RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD,   0)
+#define RETRO_DEVICE_PSE_ANALOG           RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   0)
+#define RETRO_DEVICE_PSE_DUALSHOCK        RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   1)
+#define RETRO_DEVICE_PSE_NEGCON           RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG,   2)
+#define RETRO_DEVICE_PSE_GUNCON           RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 0)
+#define RETRO_DEVICE_PSE_JUSTIFIER        RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 1)
+#define RETRO_DEVICE_PSE_MOUSE            RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE,    0)
 
 static char *get_pse_pad_label[] = {
    "none", "mouse", "negcon", "konami gun", "standard", "analog", "guncon", "dualshock"
@@ -554,12 +555,13 @@ static char *get_pse_pad_label[] = {
 
 static const struct retro_controller_description pads[7] =
 {
-   { "standard",  RETRO_DEVICE_JOYPAD },
-   { "analog",    RETRO_DEVICE_PSE_ANALOG },
-   { "dualshock", RETRO_DEVICE_PSE_DUALSHOCK },
-   { "negcon",    RETRO_DEVICE_PSE_NEGCON },
-   { "guncon",    RETRO_DEVICE_PSE_GUNCON },
-   { "mouse",     RETRO_DEVICE_PSE_MOUSE },
+   { "standard",   RETRO_DEVICE_JOYPAD },
+   { "analog",     RETRO_DEVICE_PSE_ANALOG },
+   { "dualshock",  RETRO_DEVICE_PSE_DUALSHOCK },
+   { "negcon",     RETRO_DEVICE_PSE_NEGCON },
+   { "guncon",     RETRO_DEVICE_PSE_GUNCON },
+   { "konami gun", RETRO_DEVICE_PSE_JUSTIFIER },
+   { "mouse",      RETRO_DEVICE_PSE_MOUSE },
    { NULL, 0 },
 };
 
@@ -852,6 +854,9 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
       break;
    case RETRO_DEVICE_PSE_GUNCON:
       in_type[port] = PSE_PAD_TYPE_GUNCON;
+      break;
+   case RETRO_DEVICE_PSE_JUSTIFIER:
+      in_type[port] = PSE_PAD_TYPE_GUN;
       break;
    case RETRO_DEVICE_NONE:
    default:
@@ -1499,7 +1504,8 @@ bool retro_load_game(const struct retro_game_info *info)
       { port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER, "Gun Trigger" },                        \
       { port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD,  "Gun Reload" },                         \
       { port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A,   "Gun Aux A" },                          \
-      { port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_B,   "Gun Aux B" },
+      { port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_B,   "Gun Aux B" },                          \
+      { port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_START,   "Gun Start" },
       
       JOYP(0)
       JOYP(1)
@@ -2484,6 +2490,38 @@ static void update_input_guncon(int port, int ret)
 	   
 }
 
+static void update_input_justifier(int port, int ret)
+{
+   //ToDo:
+   //Core option for cursors for both players
+   //Separate pointer and lightgun control types
+
+   //Mouse range is -32767 -> 32767
+   //1% is about 655
+
+   int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
+   int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
+
+   //Placeholder for future use of gun coordinates, assuming NTSC with resolution of 320x240 (can be generalized and cleaned up later)
+   //timer0 = ((gunx + 32767) / (65534 * .198166) * 320) + 140;
+   //timer1 = (guny + 32767) / 65534 * 240;
+	
+   //JUSTIFIER has 3 controls, Trigger,Back,Start which equal Square,Cross,Start
+
+   // Trigger
+   if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER) || input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD))
+      in_keystate[port] |= (1 << DKEY_SQUARE);
+
+   // Back
+   if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A))
+      in_keystate[port] |= (1 << DKEY_CROSS);
+
+   // Start
+   if (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_START))
+      in_keystate[port] |= (1 << DKEY_START);
+	   
+}
+
 static void update_input_negcon(int port, int ret)
 {
    int lsx;
@@ -2651,6 +2689,9 @@ static void update_input(void)
       {
       case PSE_PAD_TYPE_GUNCON:
          update_input_guncon(i, ret);
+         break;
+      case PSE_PAD_TYPE_GUN:
+         update_input_justifier(i, ret);
          break;
       case PSE_PAD_TYPE_NEGCON:
          update_input_negcon(i, ret);

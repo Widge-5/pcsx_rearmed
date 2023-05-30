@@ -677,6 +677,18 @@ void _PADstartPoll(PadDataS *pad) {
 			memcpy(buf, stdpar, 8);
 			respSize = 8;
 			break;
+		case PSE_PAD_TYPE_GUN: // GUN CONTROLLER - gun controller SLPH-00014 from Konami
+			stdpar[0] = 0x31;
+			stdpar[1] = 0x5a;
+			stdpar[2] = pad->buttonStatus & 0xff;
+			stdpar[3] = pad->buttonStatus >> 8;
+			stdpar[4] = 0xff;
+			stdpar[5] = 0xff;
+			stdpar[6] = 0xff;
+			stdpar[7] = 0xff;
+			memcpy(buf, stdpar, 8);
+			respSize = 8;
+			break;
 		case PSE_PAD_TYPE_ANALOGPAD: // scph1150
 			stdpar[0] = 0x73;
 			stdpar[1] = 0x5a;
