@@ -2436,7 +2436,8 @@ static void update_input_guncon(int port, int ret)
    {
       if (gunx <= 0)
       {
-         in_analog_left[port][0] = gunx * 0.65;
+         in_analog_left[0][0] = gunx * 0.70;
+	 in_analog_left[1][0] = gunx * 0.85
       }
       else
       {
