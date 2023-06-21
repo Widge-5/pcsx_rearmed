@@ -2434,8 +2434,15 @@ static void update_input_guncon(int port, int ret)
    }
    else
    {
-      in_analog_left[port][0] = (gunx * GunconAdjustRatioX) + (GunconAdjustX * 655);
-      in_analog_left[port][1] = (guny * GunconAdjustRatioY) + (GunconAdjustY * 655);
+      if (gunx <= 0)
+      {
+         in_analog_left[port][0] = gunx * 0.65;
+      }
+      else
+      {
+         in_analog_left[port][0] = gunx * 0.85;
+      }
+      in_analog_left[port][1] = (guny * 0.95) - (3 * 655);
    }
 	
    //GUNCON has 3 controls, Trigger,A,B which equal Circle,Start,Cross
