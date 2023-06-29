@@ -673,8 +673,8 @@ void _PADstartPoll(PadDataS *pad) {
 			else {
 			   stdpar[4] = 0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10);
 			   stdpar[5] = (0x5a - (xres - 256) / 3 + (((xres - 256) / 3 + 356) * absX >> 10)) >> 8;
-			   stdpar[6] = 0x07 + 0x20 + (yres * absY >> 10);
-			   stdpar[7] = (0x07 + 0x20 + (yres * absY >> 10)) >> 8;
+			   stdpar[6] = 0x15 + 0x20 + (yres * absY >> 10);
+			   stdpar[7] = (0x15 + 0x20 + (yres * absY >> 10)) >> 8;
 			}
 
 			memcpy(buf, stdpar, 8);
