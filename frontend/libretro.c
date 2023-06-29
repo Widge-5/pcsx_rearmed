@@ -2443,7 +2443,7 @@ static void update_input_guncon(int port, int ret)
       {
          in_analog_left[port][0] = gunx * 0.85;
       }
-      in_analog_left[port][1] = guny * 0.95;
+      in_analog_left[port][1] = (guny * 0.95) - (9 * 655);
       //in_analog_left[port][1] = (guny * 0.95) - (3 * 655);
    }
 	
