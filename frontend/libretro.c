@@ -2510,16 +2510,21 @@ static void update_input_justifier(int port, int ret)
    //Core option for cursors for both players
    //Separate pointer and lightgun control types
 
-   //Mouse range is -32767 -> 32767
-   //1% is about 655
+   //RetroArch lightgun range is -32767 -> 32767 on both axes (positive Y is down)
+
+   int irq_count = 4;
 
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   //Placeholder for future use of gun coordinates, assuming NTSC with resolution of 320x240 (can be generalized and cleaned up later)
-   //timer0 = ((gunx + 32767) / (65534 * .198166) * 320) + 140;
-   //timer1 = (guny + 32767) / 65534 * 240;
-	
+   int gunx_scaled = ((gunx + 32767.f) * vout_width / (65534.f * .198166f)) + 140.f;
+   int guny_scaled = (guny + 32767.0f) * vout_height / 65534.f;
+
+   if (!(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
+   {
+      psxScheduleIrq10(irq_count, gunx_scaled, guny_scaled);
+   }
+
    //JUSTIFIER has 3 controls, Trigger,Back,Start which equal Square,Cross,Start
 
    // Trigger
