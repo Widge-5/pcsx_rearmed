@@ -45,7 +45,7 @@ enum R3000Aexception {
 enum R3000Anote {
 	R3000ACPU_NOTIFY_CACHE_ISOLATED = 0,
 	R3000ACPU_NOTIFY_CACHE_UNISOLATED = 1,
-	R3000ACPU_NOTIFY_BEFORE_SAVE,
+	R3000ACPU_NOTIFY_BEFORE_SAVE,  // data arg - hle if non-null
 	R3000ACPU_NOTIFY_AFTER_LOAD,
 };
 
@@ -88,7 +88,7 @@ typedef union {
 		u32   r0, at, v0, v1, a0, a1, a2, a3,
 						t0, t1, t2, t3, t4, t5, t6, t7,
 						s0, s1, s2, s3, s4, s5, s6, s7,
-						t8, t9, k0, k1, gp, sp, s8, ra, lo, hi;
+						t8, t9, k0, k1, gp, sp, fp, ra, lo, hi;
 	} n;
 	u32 r[34]; /* Lo, Hi in r[32] and r[33] */
 	PAIR p[34];
@@ -180,7 +180,7 @@ enum {
 	PSXINT_NEWDRC_CHECK,
 	PSXINT_RCNT,
 	PSXINT_CDRLID,
-	PSXINT_CDRPLAY_OLD,	/* unused */
+	PSXINT_IRQ10,
 	PSXINT_SPU_UPDATE,
 	PSXINT_COUNT
 };
@@ -256,6 +256,9 @@ void psxException(u32 code, enum R3000Abdt bdt, psxCP0Regs *cp0);
 void psxBranchTest();
 void psxExecuteBios();
 void psxJumpTest();
+
+void irq10Interrupt();
+void psxScheduleIrq10(int irq_count, int x_cycles, int y);
 
 #ifdef __cplusplus
 }

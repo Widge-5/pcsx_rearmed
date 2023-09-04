@@ -87,10 +87,12 @@ typedef enum
 	MA_OPT_VOUT_MODE,
 	MA_OPT_SCANLINES,
 	MA_OPT_SCANLINE_LEVEL,
+	MA_OPT_CENTERING,
 } menu_id;
 
 static int last_vout_w, last_vout_h, last_vout_bpp;
-static int cpu_clock, cpu_clock_st, volume_boost, frameskip;
+static int cpu_clock, cpu_clock_st, volume_boost;
+static int frameskip = 1; // 0 - auto, 1 - off
 static char last_selected_fname[MAXPATHLEN];
 static int config_save_counter, region, in_type_sel1, in_type_sel2;
 static int psx_clock;
@@ -110,7 +112,7 @@ int soft_filter;
 #define DEFAULT_PSX_CLOCK_S "50"
 #endif
 
-static const char *bioses[24];
+static const char *bioses[32];
 static const char *gpu_plugins[16];
 static const char *spu_plugins[16];
 static const char *memcards[32];
@@ -336,7 +338,7 @@ static void menu_set_defconfig(void)
 	g_scaler = SCALE_4_3;
 	g_gamma = 100;
 	volume_boost = 0;
-	frameskip = 0;
+	frameskip = 1; // 1 - off
 	analog_deadzone = 50;
 	soft_scaling = 1;
 	soft_filter = 0;
@@ -423,7 +425,7 @@ static const struct {
 	CE_INTVAL(g_autostateld_opt),
 	CE_INTVAL_N("adev0_is_nublike", in_adev_is_nublike[0]),
 	CE_INTVAL_N("adev1_is_nublike", in_adev_is_nublike[1]),
-	CE_INTVAL_V(frameskip, 3),
+	CE_INTVAL_V(frameskip, 4),
 	CE_INTVAL_P(gpu_peops.iUseDither),
 	CE_INTVAL_P(gpu_peops.dwActFixes),
 	CE_INTVAL_P(gpu_unai.lineskip),
@@ -452,6 +454,9 @@ static const struct {
 	CE_INTVAL_P(gpu_peopsgl.iVRamSize),
 	CE_INTVAL_P(gpu_peopsgl.iTexGarbageCollection),
 	CE_INTVAL_P(gpu_peopsgl.dwActFixes),
+	CE_INTVAL_P(screen_centering_type),
+	CE_INTVAL_P(screen_centering_x),
+	CE_INTVAL_P(screen_centering_y),
 	CE_INTVAL(spu_config.iUseReverb),
 	CE_INTVAL(spu_config.iXAPitch),
 	CE_INTVAL(spu_config.iUseInterpolation),
@@ -1254,6 +1259,7 @@ static const char *men_soft_filter[] = { "None",
 #endif
 	NULL };
 static const char *men_dummy[] = { NULL };
+static const char *men_centering[] = { "Auto", "Ingame", "Force", NULL };
 static const char h_scaler[]    = "int. 2x  - scales w. or h. 2x if it fits on screen\n"
 				  "int. 4:3 - uses integer if possible, else fractional";
 static const char h_cscaler[]   = "Displays the scaler layer, you can resize it\n"
@@ -1318,6 +1324,7 @@ static int menu_loop_cscaler(int id, int keys)
 
 static menu_entry e_menu_gfx_options[] =
 {
+	mee_enum      ("Screen centering",         MA_OPT_CENTERING, pl_rearmed_cbs.screen_centering_type, men_centering),
 	mee_enum_h    ("Scaler",                   MA_OPT_VARSCALER, g_scaler, men_scaler, h_scaler),
 	mee_enum      ("Video output mode",        MA_OPT_VOUT_MODE, plat_target.vout_method, men_dummy),
 	mee_onoff     ("Software Scaling",         MA_OPT_SCALER2, soft_scaling, 1),
@@ -2448,7 +2455,8 @@ static void scan_bios_plugins(void)
 			continue;
 
 		snprintf(fname, sizeof(fname), "%s/%s", Config.BiosDir, ent->d_name);
-		if (stat(fname, &st) != 0 || st.st_size != 512*1024) {
+		if (stat(fname, &st) != 0
+		    || (st.st_size != 512*1024 && st.st_size != 4*1024*1024)) {
 			printf("bad BIOS file: %s\n", ent->d_name);
 			continue;
 		}
@@ -2585,7 +2593,7 @@ void menu_init(void)
 
 	i = plat_target.cpu_clock_set != NULL
 		&& plat_target.cpu_clock_get != NULL && cpu_clock_st > 0;
-	me_enable(e_menu_gfx_options, MA_OPT_CPU_CLOCKS, i);
+	me_enable(e_menu_options, MA_OPT_CPU_CLOCKS, i);
 
 	i = me_id2offset(e_menu_gfx_options, MA_OPT_VOUT_MODE);
 	e_menu_gfx_options[i].data = plat_target.vout_methods;

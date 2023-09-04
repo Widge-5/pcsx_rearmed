@@ -30,10 +30,6 @@ void schedule_timeslice(void)
 	next_interupt = c + min;
 }
 
-static void unusedInterrupt()
-{
-}
-
 typedef void (irq_func)();
 
 static irq_func * const irq_funcs[] = {
@@ -47,7 +43,7 @@ static irq_func * const irq_funcs[] = {
 	[PSXINT_GPUOTCDMA] = gpuotcInterrupt,
 	[PSXINT_CDRDMA] = cdrDmaInterrupt,
 	[PSXINT_CDRLID] = cdrLidSeekInterrupt,
-	[PSXINT_CDRPLAY_OLD] = unusedInterrupt,
+	[PSXINT_IRQ10] = irq10Interrupt,
 	[PSXINT_SPU_UPDATE] = spuUpdate,
 	[PSXINT_RCNT] = psxRcntUpdate,
 };
@@ -68,8 +64,11 @@ static void irq_test(psxCP0Regs *cp0)
 		}
 	}
 
-	if ((psxHu32(0x1070) & psxHu32(0x1074)) && (cp0->n.SR & 0x401) == 0x401) {
-		psxException(0x400, 0, cp0);
+	cp0->n.Cause &= ~0x400;
+	if (psxHu32(0x1070) & psxHu32(0x1074))
+		cp0->n.Cause |= 0x400;
+	if (((cp0->n.Cause | 1) & cp0->n.SR & 0x401) == 0x401) {
+		psxException(0, 0, cp0);
 		pending_exception = 1;
 	}
 }

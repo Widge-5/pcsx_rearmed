@@ -88,17 +88,17 @@ static void hleExecRet() {
 
 	PSXHLE_LOG("ExecRet %x: %x\n", psxRegs.GPR.n.s0, header->ret);
 
-	psxRegs.GPR.n.ra = header->ret;
-	psxRegs.GPR.n.sp = header->_sp;
-	psxRegs.GPR.n.s8 = header->_fp;
-	psxRegs.GPR.n.gp = header->_gp;
-	psxRegs.GPR.n.s0 = header->base;
+	psxRegs.GPR.n.ra = SWAP32(header->ret);
+	psxRegs.GPR.n.sp = SWAP32(header->_sp);
+	psxRegs.GPR.n.fp = SWAP32(header->_fp);
+	psxRegs.GPR.n.gp = SWAP32(header->_gp);
+	psxRegs.GPR.n.s0 = SWAP32(header->base);
 
 	psxRegs.GPR.n.v0 = 1;
 	psxRegs.pc = psxRegs.GPR.n.ra;
 }
 
-void (* const psxHLEt[22])() = {
+void (* const psxHLEt[24])() = {
 	hleDummy, hleA0, hleB0, hleC0,
 	hleBootstrap, hleExecRet, psxBiosException, hleDummy,
 	hleExc0_0_1, hleExc0_0_2,
@@ -108,4 +108,5 @@ void (* const psxHLEt[22])() = {
 	hleExc1_2_1, hleExc1_2_2,
 	hleExc1_3_1, hleExc1_3_2,
 	hleExc3_0_2_defint,
+	hleExcPadCard1, hleExcPadCard2,
 };

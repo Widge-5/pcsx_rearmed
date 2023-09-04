@@ -493,6 +493,8 @@ static void scan_for_irq(int ch, unsigned int *upd_samples)
  pos = s_chan->spos;
  sinc = s_chan->sinc;
  end = pos + *upd_samples * sinc;
+ if (s_chan->prevflags & 1)                 // 1: stop/loop
+  block = s_chan->pLoop;
 
  pos += (28 - s_chan->iSBPos) << 16;
  while (pos < end)
@@ -1152,7 +1154,10 @@ void do_samples(unsigned int cycles_to, int do_direct)
       do_irq();
      }
    }
-  check_irq_io(spu.spuAddr);
+  if (!spu.cycles_dma_end || (int)(spu.cycles_dma_end - cycles_to) < 0) {
+   spu.cycles_dma_end = 0;
+   check_irq_io(spu.spuAddr);
+  }
 
   if (unlikely(spu.rvb->dirty))
    REVERBPrep();
@@ -1482,6 +1487,7 @@ long CALLBACK SPUinit(void)
 {
  int i;
 
+ memset(&spu, 0, sizeof(spu));
  spu.spuMemC = calloc(1, 512 * 1024);
  InitADSR();
 
@@ -1558,33 +1564,6 @@ long CALLBACK SPUshutdown(void)
  spu.bSpuInit=0;
 
  return 0;
-}
-
-// SPUTEST: we don't test, we are always fine ;)
-long CALLBACK SPUtest(void)
-{
- return 0;
-}
-
-// SPUCONFIGURE: call config dialog
-long CALLBACK SPUconfigure(void)
-{
-#ifdef _MACOSX
- DoConfiguration();
-#else
-// StartCfgTool("CFG");
-#endif
- return 0;
-}
-
-// SPUABOUT: show about window
-void CALLBACK SPUabout(void)
-{
-#ifdef _MACOSX
- DoAbout();
-#else
-// StartCfgTool("ABOUT");
-#endif
 }
 
 // SETUP CALLBACKS

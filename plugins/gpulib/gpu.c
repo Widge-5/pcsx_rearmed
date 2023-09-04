@@ -9,6 +9,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdlib.h> /* for calloc */
 
@@ -25,13 +26,8 @@
 #define noinline
 #endif
 
-#define gpu_log(fmt, ...) \
-  printf("%d:%03d: " fmt, *gpu.state.frame_count, *gpu.state.hcnt, ##__VA_ARGS__)
-
 //#define log_io gpu_log
 #define log_io(...)
-//#define log_anomaly gpu_log
-#define log_anomaly(...)
 
 struct psx_gpu gpu;
 
@@ -65,28 +61,92 @@ static noinline void do_reset(void)
   gpu.regs[3] = 1;
   gpu.screen.hres = gpu.screen.w = 256;
   gpu.screen.vres = gpu.screen.h = 240;
+  gpu.screen.x = gpu.screen.y = 0;
+  renderer_sync_ecmds(gpu.ex_regs);
+  renderer_notify_res_change();
 }
 
 static noinline void update_width(void)
 {
+  static const short hres_all[8] = { 256, 368, 320, 368, 512, 368, 640, 368 };
+  static const uint8_t hdivs[8] = { 10, 7, 8, 7, 5, 7, 4, 7 };
+  uint8_t hdiv = hdivs[(gpu.status >> 16) & 7];
+  int hres = hres_all[(gpu.status >> 16) & 7];
+  int pal = gpu.status & PSX_GPU_STATUS_PAL;
   int sw = gpu.screen.x2 - gpu.screen.x1;
-  if (sw <= 0 || sw >= 2560)
-    // full width
-    gpu.screen.w = gpu.screen.hres;
-  else
-    gpu.screen.w = sw * gpu.screen.hres / 2560;
+  int x = 0, x_auto;
+  if (sw <= 0)
+    /* nothing displayed? */;
+  else {
+    int s = pal ? 656 : 608; // or 600? pal is just a guess
+    x = (gpu.screen.x1 - s) / hdiv;
+    x = (x + 1) & ~1;   // blitter limitation
+    sw /= hdiv;
+    sw = (sw + 2) & ~3; // according to nocash
+    switch (gpu.state.screen_centering_type) {
+    case 1:
+      break;
+    case 2:
+      x = gpu.state.screen_centering_x;
+      break;
+    default:
+      // correct if slightly miscentered
+      x_auto = (hres - sw) / 2 & ~3;
+      if ((uint32_t)x_auto <= 8u && abs(x) < 24)
+        x = x_auto;
+    }
+    if (x + sw > hres)
+      sw = hres - x;
+    // .x range check is done in vout_update()
+  }
+  // reduce the unpleasant right border that a few games have
+  if (gpu.state.screen_centering_type == 0
+      && x <= 4 && hres - (x + sw) >= 4)
+    hres -= 4;
+  gpu.screen.x = x;
+  gpu.screen.w = sw;
+  gpu.screen.hres = hres;
+  gpu.state.dims_changed = 1;
+  //printf("xx %d %d -> %2d, %d / %d\n",
+  //  gpu.screen.x1, gpu.screen.x2, x, sw, hres);
 }
 
 static noinline void update_height(void)
 {
-  // TODO: emulate this properly..
+  int pal = gpu.status & PSX_GPU_STATUS_PAL;
+  int dheight = gpu.status & PSX_GPU_STATUS_DHEIGHT;
+  int y = gpu.screen.y1 - (pal ? 39 : 16); // 39 for spyro
   int sh = gpu.screen.y2 - gpu.screen.y1;
-  if (gpu.status & PSX_GPU_STATUS_DHEIGHT)
-    sh *= 2;
-  if (sh <= 0 || sh > gpu.screen.vres)
-    sh = gpu.screen.vres;
+  int center_tol = 16;
+  int vres = 240;
 
+  if (pal && (sh > 240 || gpu.screen.vres == 256))
+    vres = 256;
+  if (dheight)
+    y *= 2, sh *= 2, vres *= 2, center_tol *= 2;
+  if (sh <= 0)
+    /* nothing displayed? */;
+  else {
+    switch (gpu.state.screen_centering_type) {
+    case 1:
+      break;
+    case 2:
+      y = gpu.state.screen_centering_y;
+      break;
+    default:
+      // correct if slightly miscentered
+      if ((uint32_t)(vres - sh) <= 1 && abs(y) <= center_tol)
+        y = 0;
+    }
+    if (y + sh > vres)
+      sh = vres - y;
+  }
+  gpu.screen.y = y;
   gpu.screen.h = sh;
+  gpu.screen.vres = vres;
+  gpu.state.dims_changed = 1;
+  //printf("yy %d %d -> %d, %d / %d\n",
+  //  gpu.screen.y1, gpu.screen.y2, y, sh, vres);
 }
 
 static noinline void decide_frameskip(void)
@@ -123,13 +183,17 @@ static noinline int decide_frameskip_allow(uint32_t cmd_e3)
   uint32_t x = cmd_e3 & 0x3ff;
   uint32_t y = (cmd_e3 >> 10) & 0x3ff;
   gpu.frameskip.allow = (gpu.status & PSX_GPU_STATUS_INTERLACE) ||
-    (uint32_t)(x - gpu.screen.x) >= (uint32_t)gpu.screen.w ||
-    (uint32_t)(y - gpu.screen.y) >= (uint32_t)gpu.screen.h;
+    (uint32_t)(x - gpu.screen.src_x) >= (uint32_t)gpu.screen.w ||
+    (uint32_t)(y - gpu.screen.src_y) >= (uint32_t)gpu.screen.h;
   return gpu.frameskip.allow;
 }
 
+static void flush_cmd_buffer(void);
+
 static noinline void get_gpu_info(uint32_t data)
 {
+  if (unlikely(gpu.cmd_len > 0))
+    flush_cmd_buffer();
   switch (data & 0x0f) {
     case 0x02:
     case 0x03:
@@ -232,9 +296,11 @@ long GPUinit(void)
   ret  = vout_init();
   ret |= renderer_init();
 
+  memset(&gpu.state, 0, sizeof(gpu.state));
+  memset(&gpu.frameskip, 0, sizeof(gpu.frameskip));
+  gpu.zero = 0;
   gpu.state.frame_count = &gpu.zero;
   gpu.state.hcnt = &gpu.zero;
-  gpu.frameskip.active = 0;
   gpu.cmd_len = 0;
   do_reset();
 
@@ -266,11 +332,6 @@ long GPUshutdown(void)
 
 void GPUwriteStatus(uint32_t data)
 {
-	//senquack TODO: Would it be wise to add cmd buffer flush here, since
-	// status settings can affect commands already in buffer?
-
-  static const short hres[8] = { 256, 368, 320, 384, 512, 512, 640, 640 };
-  static const short vres[4] = { 240, 480, 256, 480 };
   uint32_t cmd = data >> 24;
 
   if (cmd < ARRAY_SIZE(gpu.regs)) {
@@ -289,8 +350,10 @@ void GPUwriteStatus(uint32_t data)
       do_cmd_reset();
       break;
     case 0x03:
-      if (data & 1)
+      if (data & 1) {
         gpu.status |= PSX_GPU_STATUS_BLANKING;
+        gpu.state.dims_changed = 1; // for hud clearing
+      }
       else
         gpu.status &= ~PSX_GPU_STATUS_BLANKING;
       break;
@@ -299,8 +362,9 @@ void GPUwriteStatus(uint32_t data)
       gpu.status |= PSX_GPU_STATUS_DMA(data & 3);
       break;
     case 0x05:
-      gpu.screen.x = data & 0x3ff;
-      gpu.screen.y = (data >> 10) & 0x1ff;
+      gpu.screen.src_x = data & 0x3ff;
+      gpu.screen.src_y = (data >> 10) & 0x1ff;
+      renderer_notify_scanout_x_change(gpu.screen.src_x, gpu.screen.hres);
       if (gpu.frameskip.set) {
         decide_frameskip_allow(gpu.ex_regs[3]);
         if (gpu.frameskip.last_flip_frame != *gpu.state.frame_count) {
@@ -321,8 +385,6 @@ void GPUwriteStatus(uint32_t data)
       break;
     case 0x08:
       gpu.status = (gpu.status & ~0x7f0000) | ((data & 0x3F) << 17) | ((data & 0x40) << 10);
-      gpu.screen.hres = hres[(gpu.status >> 16) & 7];
-      gpu.screen.vres = vres[(gpu.status >> 19) & 3];
       update_width();
       update_height();
       renderer_notify_res_change();
@@ -452,7 +514,7 @@ static void finish_vram_transfer(int is_read)
     gpu.status &= ~PSX_GPU_STATUS_IMG;
   else
     renderer_update_caches(gpu.dma_start.x, gpu.dma_start.y,
-                           gpu.dma_start.w, gpu.dma_start.h);
+                           gpu.dma_start.w, gpu.dma_start.h, 0);
 }
 
 static noinline int do_cmd_list_skip(uint32_t *data, int count, int *last_cmd)
@@ -633,6 +695,10 @@ long GPUdmaChain(uint32_t *rambase, uint32_t start_addr, uint32_t *progress_addr
     log_io(".chain %08lx #%d+%d\n",
       (long)(list - rambase) * 4, len, gpu.cmd_len);
     if (unlikely(gpu.cmd_len > 0)) {
+      if (gpu.cmd_len + len > ARRAY_SIZE(gpu.cmd_buffer)) {
+        log_anomaly("cmd_buffer overflow, likely garbage commands\n");
+        gpu.cmd_len = 0;
+      }
       memcpy(gpu.cmd_buffer + gpu.cmd_len, list + 1, len * 4);
       gpu.cmd_len += len;
       flush_cmd_buffer();
@@ -761,7 +827,7 @@ long GPUfreeze(uint32_t type, struct GPUFreeze *freeze)
         GPUwriteStatus((i << 24) | (gpu.regs[i] ^ 1));
       }
       renderer_sync_ecmds(gpu.ex_regs);
-      renderer_update_caches(0, 0, 1024, 512);
+      renderer_update_caches(0, 0, 1024, 512, 1);
       break;
   }
 
@@ -774,6 +840,7 @@ void GPUupdateLace(void)
     flush_cmd_buffer();
   renderer_flush_queues();
 
+#ifndef RAW_FB_DISPLAY
   if (gpu.status & PSX_GPU_STATUS_BLANKING) {
     if (!gpu.state.blanked) {
       vout_blank();
@@ -787,6 +854,7 @@ void GPUupdateLace(void)
 
   if (!gpu.state.fb_dirty)
     return;
+#endif
 
   if (gpu.frameskip.set) {
     if (!gpu.frameskip.frame_ready) {
@@ -798,6 +866,9 @@ void GPUupdateLace(void)
   }
 
   vout_update();
+  if (gpu.state.enhancement_active && !gpu.state.enhancement_was_active)
+    renderer_update_caches(0, 0, 1024, 512, 1);
+  gpu.state.enhancement_was_active = gpu.state.enhancement_active;
   gpu.state.fb_dirty = 0;
   gpu.state.blanked = 0;
   renderer_notify_update_lace(1);
@@ -832,15 +903,23 @@ void GPUrearmedCallbacks(const struct rearmed_cbs *cbs)
   gpu.frameskip.set = cbs->frameskip;
   gpu.frameskip.advice = &cbs->fskip_advice;
   gpu.frameskip.force = &cbs->fskip_force;
-  gpu.frameskip.dirty = &cbs->fskip_dirty;
+  gpu.frameskip.dirty = (void *)&cbs->fskip_dirty;
   gpu.frameskip.active = 0;
   gpu.frameskip.frame_ready = 1;
   gpu.state.hcnt = cbs->gpu_hcnt;
   gpu.state.frame_count = cbs->gpu_frame_count;
   gpu.state.allow_interlace = cbs->gpu_neon.allow_interlace;
   gpu.state.enhancement_enable = cbs->gpu_neon.enhancement_enable;
+  if (gpu.state.screen_centering_type != cbs->screen_centering_type
+      || gpu.state.screen_centering_x != cbs->screen_centering_x
+      || gpu.state.screen_centering_y != cbs->screen_centering_y) {
+    gpu.state.screen_centering_type = cbs->screen_centering_type;
+    gpu.state.screen_centering_x = cbs->screen_centering_x;
+    gpu.state.screen_centering_y = cbs->screen_centering_y;
+    update_width();
+    update_height();
+  }
 
-  gpu.useDithering = cbs->gpu_neon.allow_dithering;
   gpu.mmap = cbs->mmap;
   gpu.munmap = cbs->munmap;
 
