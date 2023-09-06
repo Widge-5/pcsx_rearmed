@@ -2516,15 +2516,15 @@ static void update_input_justifier(int port, int ret)
    float justifier_multiplier;
 
    if (vout_width == 256)
-      justifier_multiplier = .158532f;
+      justifier_multiplier = is_pal_mode ? .157086 : .158532f;
    else if (vout_width == 320)
-      justifier_multiplier = .198166f;
+      justifier_multiplier = is_pal_mode ? .196358 : .198166f;
    else if (vout_width == 384)
-      justifier_multiplier = .226475f;
+      justifier_multiplier = is_pal_mode ? .224409 : .226475f;
    else if (vout_width == 512)
-      justifier_multiplier = .317065f;
+      justifier_multiplier = is_pal_mode ? .314173 : .317065f;
    else if (vout_width == 640)
-      justifier_multiplier = .396332f;
+      justifier_multiplier = is_pal_mode ? .392717 : .396332f;
 
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
