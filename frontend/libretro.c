@@ -2513,11 +2513,23 @@ static void update_input_justifier(int port, int ret)
    //RetroArch lightgun range is -32767 -> 32767 on both axes (positive Y is down)
 
    int irq_count = 4;
+   float justifier_multiplier;
+
+   if (vout_width == 256)
+      justifier_multiplier = .158532f;
+   else if (vout_width == 320)
+      justifier_multiplier = .198166f;
+   else if (vout_width == 384)
+      justifier_multiplier = .226475f;
+   else if (vout_width == 512)
+      justifier_multiplier = .317065f;
+   else if (vout_width == 640)
+      justifier_multiplier = .396332f;
 
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   int gunx_scaled = ((gunx + 32767.f) * vout_width / (65534.f * .198166f)) + 140.f;
+   int gunx_scaled = ((gunx + 32767.f) * vout_width / (65534.f * justifier_multiplier)) + 140.f;
    int guny_scaled = (guny + 32767.0f) * vout_height / 65534.f;
 
    if (!(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
