@@ -518,8 +518,38 @@ void pl_update_gun(int *xn, int *yn, int *xres, int *yres, int *in)
 {
 }
 
+//Percentage distance of screen to adjust
+static int GunconAdjustX = 0;
+static int GunconAdjustY = 0;
+
 void pl_gun_byte2(int port, unsigned char byte)
 {
+   int irq_count = 4;
+   float justifier_multiplier = 0;
+
+   if (vout_width == 256)
+      justifier_multiplier = is_pal_mode ? .157086f : .158532f;
+   else if (vout_width == 320)
+      justifier_multiplier = is_pal_mode ? .196358f : .198166f;
+   else if (vout_width == 384)
+      justifier_multiplier = is_pal_mode ? .224409f : .226475f;
+   else if (vout_width == 512)
+      justifier_multiplier = is_pal_mode ? .314173f : .317065f;
+   else if (vout_width == 640)
+      justifier_multiplier = is_pal_mode ? .392717f : .396332f;
+   else
+      justifier_multiplier = is_pal_mode ? .196358f : .198166f;
+
+   int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
+   int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
+
+   int gunx_scaled = ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / (100.0f * justifier_multiplier));
+   int guny_scaled = (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
+
+   if (!(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
+   {
+      psxScheduleIrq10(irq_count, gunx_scaled, guny_scaled);
+   }
 }
 
 /* sound calls */
@@ -1747,8 +1777,8 @@ static const unsigned short retro_psx_map[] = {
 #define RETRO_PSX_MAP_LEN (sizeof(retro_psx_map) / sizeof(retro_psx_map[0]))
 
 //Percentage distance of screen to adjust
-static int GunconAdjustX = 0;
-static int GunconAdjustY = 0;
+//static int GunconAdjustX = 0;
+//static int GunconAdjustY = 0;
 
 //Used when out by a percentage
 static float GunconAdjustRatioX = 1;
@@ -2515,31 +2545,6 @@ static void update_input_justifier(int port, int ret)
    //Separate pointer and lightgun control types
 
    //RetroArch lightgun range is -32767 -> 32767 on both axes (positive Y is down)
-
-   int irq_count = 4;
-   float justifier_multiplier;
-
-   if (vout_width == 256)
-      justifier_multiplier = is_pal_mode ? .157086 : .158532f;
-   else if (vout_width == 320)
-      justifier_multiplier = is_pal_mode ? .196358 : .198166f;
-   else if (vout_width == 384)
-      justifier_multiplier = is_pal_mode ? .224409 : .226475f;
-   else if (vout_width == 512)
-      justifier_multiplier = is_pal_mode ? .314173 : .317065f;
-   else if (vout_width == 640)
-      justifier_multiplier = is_pal_mode ? .392717 : .396332f;
-
-   int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
-   int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
-
-   int gunx_scaled = ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / (100.0f * justifier_multiplier));
-   int guny_scaled = (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
-
-   if (!(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
-   {
-      psxScheduleIrq10(irq_count, gunx_scaled, guny_scaled);
-   }
 
    //JUSTIFIER has 3 controls, Trigger,Back,Start which equal Square,Cross,Start
 
