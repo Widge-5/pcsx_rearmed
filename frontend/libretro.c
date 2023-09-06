@@ -2529,8 +2529,8 @@ static void update_input_justifier(int port, int ret)
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   int gunx_scaled = ((gunx + 32767.f) * vout_width / (65534.f * justifier_multiplier)) + 140.f;
-   int guny_scaled = (guny + 32767.0f) * vout_height / 65534.f;
+   int gunx_scaled = ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / 100.0f);
+   int guny_scaled = (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
 
    if (!(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
    {
