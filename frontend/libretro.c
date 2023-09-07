@@ -546,7 +546,7 @@ void pl_gun_byte2(int port, unsigned char byte)
    int gunx_scaled = ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / (100.0f * justifier_multiplier));
    int guny_scaled = (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
 
-   if (!(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
+   if ((byte & 0x10) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
    {
       psxScheduleIrq10(irq_count, gunx_scaled, guny_scaled);
    }
