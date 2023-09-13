@@ -129,6 +129,8 @@ OBJS += deps/lightning/lib/jit_disasm.o \
 		deps/lightrec/optimizer.o \
 		deps/lightrec/regcache.o
 deps/lightning/%.o: CFLAGS += -DHAVE_MMAP=P_HAVE_MMAP
+deps/lightning/%: CFLAGS += -w
+deps/lightrec/%: CFLAGS += -w
 libpcsxcore/lightrec/mem.o: CFLAGS += -D_GNU_SOURCE
 ifeq ($(MMAP_WIN32),1)
 CFLAGS += -Iinclude/mman -I deps/mman
@@ -263,11 +265,6 @@ OBJS += deps/libchdr/src/libchdr_huffman.o
 CFLAGS += -Ideps/libchdr/deps/lzma-19.00/include
 CFLAGS += -DHAVE_CHD -D_7ZIP_ST
 LDFLAGS += -lm
-endif
-
-# dfinput
-ifneq "$(PLATFORM)" "libretro"
-OBJS += plugins/dfinput/main.o plugins/dfinput/pad.o plugins/dfinput/guncon.o
 endif
 
 # frontend/gui
