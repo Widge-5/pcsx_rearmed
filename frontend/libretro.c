@@ -526,6 +526,10 @@ void plat_trigger_vibrate(int pad, int low, int high)
 static int GunconAdjustX = 0;
 static int GunconAdjustY = 0;
 
+//Used when out by a percentage
+static float GunconAdjustRatioX = 1;
+static float GunconAdjustRatioY = 1;
+
 void pl_gun_byte2(int port, unsigned char byte)
 {
    int irq_count = 4;
@@ -547,8 +551,8 @@ void pl_gun_byte2(int port, unsigned char byte)
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   int gunx_scaled = ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / (100.0f * justifier_multiplier));
-   int guny_scaled = (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
+   int gunx_scaled = GunconAdjustRatioX * ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / (100.0f * justifier_multiplier));
+   int guny_scaled = GunconAdjustRatioY * (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
 
    if ((byte & 0x10) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
    {
@@ -1788,8 +1792,8 @@ static const unsigned short retro_psx_map[] = {
 //static int GunconAdjustY = 0;
 
 //Used when out by a percentage
-static float GunconAdjustRatioX = 1;
-static float GunconAdjustRatioY = 1;
+//static float GunconAdjustRatioX = 1;
+//static float GunconAdjustRatioY = 1;
 
 static void update_variables(bool in_flight)
 {
