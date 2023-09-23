@@ -252,6 +252,8 @@ static void vout_set_mode(int w, int h, int raw_w, int raw_h, int bpp)
       retro_get_system_av_info(&info);
       environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &info.geometry);
    }
+   printf("raw width: %d\n", raw_w);
+   printf("raw height: %d\n", raw_h);
 
    set_vout_fb();
 }
@@ -528,25 +530,27 @@ void pl_gun_byte2(int port, unsigned char byte)
 {
    int irq_count = 4;
    float justifier_multiplier = 0;
+   int justifier_width = vout_width / (pl_rearmed_cbs.gpu_neon.enhancement_enable == 1 ? 2 : 1);
+   int justifier_height = vout_height / (pl_rearmed_cbs.gpu_neon.enhancement_enable == 1 ? 2 : 1);
 
-   if (vout_width == 256)
+   if (justifier_width == 256)
       justifier_multiplier = is_pal_mode ? .157086f : .158532f;
-   else if (vout_width == 320)
+   else if (justifier_width == 320)
       justifier_multiplier = is_pal_mode ? .196358f : .198166f;
-   else if (vout_width == 384)
+   else if (justifier_width == 384)
       justifier_multiplier = is_pal_mode ? .224409f : .226475f;
-   else if (vout_width == 512)
+   else if (justifier_width == 512)
       justifier_multiplier = is_pal_mode ? .314173f : .317065f;
-   else if (vout_width == 640)
+   else // (justifier_width == 640)
       justifier_multiplier = is_pal_mode ? .392717f : .396332f;
-   else
-      justifier_multiplier = is_pal_mode ? .196358f : .198166f;
 
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   int gunx_scaled = GunconAdjustRatioX * ((gunx + 32767.0f) * vout_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * vout_width / (100.0f * justifier_multiplier));
-   int guny_scaled = GunconAdjustRatioY * (guny + 32767.0f) * vout_height / 65534.0f + (GunconAdjustY * vout_height / 100.0f);
+   int gunx_scaled = GunconAdjustRatioX * ((gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * justifier_width / (100.0f * justifier_multiplier));
+   int guny_scaled = GunconAdjustRatioY * (guny + 32767.0f) * justifier_height / 65534.0f + (GunconAdjustY * justifier_height / 100.0f);
+   //int gunx_scaled = GunconAdjustRatioX * ((gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier)) + (.06f * vout_width / (justifier_enhanced * justifier_multiplier));
+   //int guny_scaled = GunconAdjustRatioY * (guny + 32767.0f) * justifier_height / 65534.0f - (.07f * vout_height / justifier_enhanced);
 
    if ((byte & 0x10) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
    {
