@@ -271,12 +271,30 @@ static void convert(void *buf, size_t bytes)
 }
 #endif
 
+// Function to add a crosshair
+void addCrosshair(int port, unsigned short *buffer, int bufferStride, int gunx, int guny, int size) {
+   for (port = 0; port < 2; port++) {
+      // Draw the horizontal line of the crosshair
+      for (int i = gunx - size / 2; i <= gunx + size / 2; i++) {
+         if (i >= 0 && i < bufferStride)
+            buffer[guny * bufferStride + i] = 0xFFFF; // Set pixel to white (adjust as needed)
+      }
+
+      // Draw the vertical line of the crosshair
+      for (int i = guny - size / 2; i <= guny + size / 2; i++) {
+         if (i >= 0 && i < bufferStride)
+            buffer[i * bufferStride + gunx] = 0xFFFF; // Set pixel to white (adjust as needed)
+      }
+    }
+}
+
 static void vout_flip(const void *vram, int stride, int bgr24,
       int x, int y, int w, int h, int dims_changed)
 {
    unsigned short *dest = vout_buf_ptr;
    const unsigned short *src = vram;
    int dstride = vout_width, h1 = h;
+   int port = 0;
 
    if (vram == NULL || dims_changed)
    {
@@ -302,6 +320,14 @@ static void vout_flip(const void *vram, int stride, int bgr24,
       {
          bgr555_to_rgb565(dest, src, w * 2);
       }
+   }
+
+   // Add the crosshair at a specified position (gunx, guny)
+   int crosshairSize = 25;  // Adjust the size of the crosshair as needed
+   for (port = 0; port < 2; port++) {
+      int gunx = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X) + 32767.0f) * dstride / 65534.0f;
+      int guny = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y) + 32767.0f) * vout_height / 65534.0f - vout_height;
+      addCrosshair(port, dest, dstride, gunx, guny, crosshairSize);
    }
 
 out:
