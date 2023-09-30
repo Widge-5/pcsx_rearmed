@@ -142,6 +142,7 @@ int in_mouse[8][2];
 int multitap1 = 0;
 int multitap2 = 0;
 int in_enable_vibration = 1;
+int in_enable_crosshair[2] = { 0, 0 };
 
 // NegCon adjustment parameters
 // > The NegCon 'twist' action is somewhat awkward when mapped
@@ -327,7 +328,8 @@ static void vout_flip(const void *vram, int stride, int bgr24,
    for (port = 0; port < 2; port++) {
       int gunx = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X) + 32767.0f) * dstride / 65534.0f;
       int guny = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y) + 32767.0f) * vout_height / 65534.0f - vout_height;
-      addCrosshair(port, dest, dstride, gunx, guny, crosshairSize);
+      if (in_enable_crosshair[port] == 1 && (in_type[port] == PSE_PAD_TYPE_GUNCON || in_type[port] == PSE_PAD_TYPE_GUN))
+         addCrosshair(port, dest, dstride, gunx, guny, crosshairSize);
    }
 
 out:
@@ -674,6 +676,8 @@ static bool update_option_visibility(void)
             "pcsx_rearmed_negcon_deadzone",
             "pcsx_rearmed_negcon_response",
             "pcsx_rearmed_input_sensitivity",
+	    "pcsx_rearmed_crosshair1",
+	    "pcsx_rearmed_crosshair2",
             "pcsx_rearmed_gunconadjustx",
             "pcsx_rearmed_gunconadjusty",
             "pcsx_rearmed_gunconadjustratiox",
@@ -2395,6 +2399,28 @@ static void update_variables(bool in_flight)
          pl_rearmed_cbs.gpu_unai.scale_hires = 1;
    }
 #endif // GPU_UNAI
+
+   var.value = NULL;
+   var.key = "pcsx_rearmed_crosshair1";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0)
+         in_enable_crosshair[0] = 0;
+      else if (strcmp(var.value, "enabled") == 0)
+         in_enable_crosshair[0] = 1;
+   }
+
+   var.value = NULL;
+   var.key = "pcsx_rearmed_crosshair2";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0)
+         in_enable_crosshair[1] = 0;
+      else if (strcmp(var.value, "enabled") == 0)
+         in_enable_crosshair[1] = 1;
+   }
 
    //This adjustment process gives the user the ability to manually align the mouse up better
    //with where the shots are in the emulator.
