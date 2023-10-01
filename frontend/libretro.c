@@ -253,8 +253,6 @@ static void vout_set_mode(int w, int h, int raw_w, int raw_h, int bpp)
       retro_get_system_av_info(&info);
       environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &info.geometry);
    }
-   printf("raw width: %d\n", raw_w);
-   printf("raw height: %d\n", raw_h);
 
    set_vout_fb();
 }
@@ -273,20 +271,20 @@ static void convert(void *buf, size_t bytes)
 #endif
 
 // Function to add a crosshair
-void addCrosshair(int port, unsigned short *buffer, int bufferStride, int gunx, int guny, int size) {
+void addCrosshair(int port, int crosshair_color, unsigned short *buffer, int bufferStride, int gunx, int guny, int size) {
    for (port = 0; port < 2; port++) {
       // Draw the horizontal line of the crosshair
       for (int i = gunx - size / 2; i <= gunx + size / 2; i++) {
          if (i >= 0 && i < bufferStride)
-            buffer[guny * bufferStride + i] = 0xFFFF; // Set pixel to white (adjust as needed)
+            buffer[guny * bufferStride + i] = crosshair_color;
       }
 
       // Draw the vertical line of the crosshair
       for (int i = guny - size / 2; i <= guny + size / 2; i++) {
-         if (i >= 0 && i < bufferStride)
-            buffer[i * bufferStride + gunx] = 0xFFFF; // Set pixel to white (adjust as needed)
+         if ((i + vout_height) >= 0 && (i + vout_height) < bufferStride)
+            buffer[i * bufferStride + gunx] = crosshair_color;
       }
-    }
+   }
 }
 
 static void vout_flip(const void *vram, int stride, int bgr24,
@@ -324,12 +322,12 @@ static void vout_flip(const void *vram, int stride, int bgr24,
    }
 
    // Add the crosshair at a specified position (gunx, guny)
-   int crosshairSize = 25;  // Adjust the size of the crosshair as needed
+   int crosshairSize = pl_rearmed_cbs.gpu_neon.enhancement_enable ? 20 : 10;  // Adjust the size of the crosshair as needed
    for (port = 0; port < 2; port++) {
       int gunx = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X) + 32767.0f) * dstride / 65534.0f;
       int guny = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y) + 32767.0f) * vout_height / 65534.0f - vout_height;
-      if (in_enable_crosshair[port] == 1 && (in_type[port] == PSE_PAD_TYPE_GUNCON || in_type[port] == PSE_PAD_TYPE_GUN))
-         addCrosshair(port, dest, dstride, gunx, guny, crosshairSize);
+      if (in_enable_crosshair[port] > 0 && (in_type[port] == PSE_PAD_TYPE_GUNCON || in_type[port] == PSE_PAD_TYPE_GUN))
+         addCrosshair(port, in_enable_crosshair[port], dest, dstride, gunx, guny, crosshairSize);
    }
 
 out:
@@ -546,20 +544,16 @@ void plat_trigger_vibrate(int pad, int low, int high)
    }
 }
 
-//Percentage distance of screen to adjust
-static int GunconAdjustX = 0;
-static int GunconAdjustY = 0;
-
-//Used when out by a percentage
-static float GunconAdjustRatioX = 1;
-static float GunconAdjustRatioY = 1;
+//Percentage distance of screen to adjust for Konami Gun
+static int KonamiGunAdjustX = 0;
+static int KonamiGunAdjustY = 0;
 
 void pl_gun_byte2(int port, unsigned char byte)
 {
    int irq_count = 4;
    float justifier_multiplier = 0;
-   int justifier_width = vout_width / (pl_rearmed_cbs.gpu_neon.enhancement_enable == 1 ? 2 : 1);
-   int justifier_height = vout_height / (pl_rearmed_cbs.gpu_neon.enhancement_enable == 1 ? 2 : 1);
+   int justifier_width = psx_w;
+   int justifier_height = psx_h;
 
    if (justifier_width == 256)
       justifier_multiplier = is_pal_mode ? .157086f : .158532f;
@@ -575,10 +569,8 @@ void pl_gun_byte2(int port, unsigned char byte)
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   int gunx_scaled = GunconAdjustRatioX * ((gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier)) + (GunconAdjustX * justifier_width / (100.0f * justifier_multiplier));
-   int guny_scaled = GunconAdjustRatioY * (guny + 32767.0f) * justifier_height / 65534.0f + (GunconAdjustY * justifier_height / 100.0f);
-   //int gunx_scaled = GunconAdjustRatioX * ((gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier)) + (.06f * vout_width / (justifier_enhanced * justifier_multiplier));
-   //int guny_scaled = GunconAdjustRatioY * (guny + 32767.0f) * justifier_height / 65534.0f - (.07f * vout_height / justifier_enhanced);
+   int gunx_scaled = (gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier) + 105.0f + (KonamiGunAdjustX * justifier_width / (100.0f * justifier_multiplier));
+   int guny_scaled = (guny + 32767.0f) * justifier_height / 65534.0f - 12.0f + (KonamiGunAdjustY * justifier_height / 100.0f);
 
    if ((byte & 0x10) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
    {
@@ -678,6 +670,8 @@ static bool update_option_visibility(void)
             "pcsx_rearmed_input_sensitivity",
 	    "pcsx_rearmed_crosshair1",
 	    "pcsx_rearmed_crosshair2",
+            "pcsx_rearmed_konamigunadjustx",
+            "pcsx_rearmed_konamigunadjusty",
             "pcsx_rearmed_gunconadjustx",
             "pcsx_rearmed_gunconadjusty",
             "pcsx_rearmed_gunconadjustratiox",
@@ -1815,13 +1809,13 @@ static const unsigned short retro_psx_map[] = {
 };
 #define RETRO_PSX_MAP_LEN (sizeof(retro_psx_map) / sizeof(retro_psx_map[0]))
 
-//Percentage distance of screen to adjust
-//static int GunconAdjustX = 0;
-//static int GunconAdjustY = 0;
+//Percentage distance of screen to adjust for Guncon
+static int GunconAdjustX = 0;
+static int GunconAdjustY = 0;
 
-//Used when out by a percentage
-//static float GunconAdjustRatioX = 1;
-//static float GunconAdjustRatioY = 1;
+//Used when out by a percentage with Guncon
+static float GunconAdjustRatioX = 1;
+static float GunconAdjustRatioY = 1;
 
 static void update_variables(bool in_flight)
 {
@@ -2407,8 +2401,14 @@ static void update_variables(bool in_flight)
    {
       if (strcmp(var.value, "disabled") == 0)
          in_enable_crosshair[0] = 0;
-      else if (strcmp(var.value, "enabled") == 0)
-         in_enable_crosshair[0] = 1;
+      else if (strcmp(var.value, "blue") == 0)
+         in_enable_crosshair[0] = 0x1F;
+      else if (strcmp(var.value, "green") == 0)
+         in_enable_crosshair[0] = 0x7E0;
+      else if (strcmp(var.value, "red") == 0)
+         in_enable_crosshair[0] = 0xF800;
+      else if (strcmp(var.value, "white") == 0)
+         in_enable_crosshair[0] = 0xFFFF;
    }
 
    var.value = NULL;
@@ -2418,12 +2418,34 @@ static void update_variables(bool in_flight)
    {
       if (strcmp(var.value, "disabled") == 0)
          in_enable_crosshair[1] = 0;
-      else if (strcmp(var.value, "enabled") == 0)
-         in_enable_crosshair[1] = 1;
+      else if (strcmp(var.value, "blue") == 0)
+         in_enable_crosshair[1] = 0x1F;
+      else if (strcmp(var.value, "green") == 0)
+         in_enable_crosshair[1] = 0x7E0;
+      else if (strcmp(var.value, "red") == 0)
+         in_enable_crosshair[1] = 0xF800;
+      else if (strcmp(var.value, "white") == 0)
+         in_enable_crosshair[1] = 0xFFFF;
    }
 
    //This adjustment process gives the user the ability to manually align the mouse up better
    //with where the shots are in the emulator.
+
+   var.value = NULL;
+   var.key = "pcsx_rearmed_konamigunadjustx";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      KonamiGunAdjustX = atoi(var.value);
+   }
+
+   var.value = NULL;
+   var.key = "pcsx_rearmed_konamigunadjusty";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      KonamiGunAdjustY = atoi(var.value);
+   }
 
    var.value = NULL;
    var.key = "pcsx_rearmed_gunconadjustx";
@@ -2560,7 +2582,6 @@ unsigned char axis_range_modifier(int16_t axis_value, bool is_square)
 static void update_input_guncon(int port, int ret)
 {
    //ToDo:
-   //Core option for cursors for both players
    //Separate pointer and lightgun control types
 
    //Mouse range is -32767 -> 32767
@@ -2602,7 +2623,6 @@ static void update_input_guncon(int port, int ret)
 static void update_input_justifier(int port, int ret)
 {
    //ToDo:
-   //Core option for cursors for both players
    //Separate pointer and lightgun control types
 
    //RetroArch lightgun range is -32767 -> 32767 on both axes (positive Y is down)
