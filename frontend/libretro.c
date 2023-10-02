@@ -271,18 +271,22 @@ static void convert(void *buf, size_t bytes)
 #endif
 
 // Function to add a crosshair
-void addCrosshair(int port, int crosshair_color, unsigned short *buffer, int bufferStride, int gunx, int guny, int size) {
+void addCrosshair(int port, int crosshair_color, unsigned short *buffer, int bufferStride, int gunx, int guny, int thickness, int size_x, int size_y) {
    for (port = 0; port < 2; port++) {
       // Draw the horizontal line of the crosshair
-      for (int i = gunx - size / 2; i <= gunx + size / 2; i++) {
-         if (i >= 0 && i < bufferStride)
-            buffer[guny * bufferStride + i] = crosshair_color;
+      for (int i = guny - thickness / 2; i <= guny + thickness / 2; i++) {
+         for (int j = gunx - size_x / 2; j <= gunx + size_x / 2; j++) {
+            if ((i + vout_height) >= 0 && (i + vout_height) < bufferStride && j >= 0 && j < bufferStride && in_enable_crosshair[port] > 0)
+               buffer[i * bufferStride + j] = crosshair_color;
       }
+         }
 
       // Draw the vertical line of the crosshair
-      for (int i = guny - size / 2; i <= guny + size / 2; i++) {
-         if ((i + vout_height) >= 0 && (i + vout_height) < bufferStride)
-            buffer[i * bufferStride + gunx] = crosshair_color;
+      for (int i = gunx - thickness / 2; i <= gunx + thickness / 2; i++) {
+         for (int j = guny - size_y / 2; j <= guny + size_y / 2; j++) {
+            if (i >= 0 && i < bufferStride && (j + vout_height) >= 0 && (j + vout_height) < bufferStride && in_enable_crosshair[port] > 0)
+               buffer[j * bufferStride + i] = crosshair_color;
+         }
       }
    }
 }
@@ -322,12 +326,19 @@ static void vout_flip(const void *vram, int stride, int bgr24,
    }
 
    // Add the crosshair at a specified position (gunx, guny)
-   int crosshairSize = pl_rearmed_cbs.gpu_neon.enhancement_enable ? 20 : 10;  // Adjust the size of the crosshair as needed
+   int crosshairSize_t = pl_rearmed_cbs.gpu_neon.enhancement_enable ? 4 : 2;
+   int crosshairSize_x = psx_w * (pl_rearmed_cbs.gpu_neon.enhancement_enable ? 2 : 1) / 40.0f;
+   int crosshairSize_y = psx_h * (pl_rearmed_cbs.gpu_neon.enhancement_enable ? 2 : 1) * (4.0f / 3.0f) / 40.0f;
    for (port = 0; port < 2; port++) {
       int gunx = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X) + 32767.0f) * dstride / 65534.0f;
       int guny = (input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y) + 32767.0f) * vout_height / 65534.0f - vout_height;
       if (in_enable_crosshair[port] > 0 && (in_type[port] == PSE_PAD_TYPE_GUNCON || in_type[port] == PSE_PAD_TYPE_GUN))
-         addCrosshair(port, in_enable_crosshair[port], dest, dstride, gunx, guny, crosshairSize);
+      {
+         if (gunx == dstride)
+            addCrosshair(port, in_enable_crosshair[port], dest, dstride, gunx - 0.5f, guny, crosshairSize_t, crosshairSize_x, crosshairSize_y);
+	 else
+            addCrosshair(port, in_enable_crosshair[port], dest, dstride, gunx, guny, crosshairSize_t, crosshairSize_x, crosshairSize_y);
+      }
    }
 
 out:
@@ -545,8 +556,8 @@ void plat_trigger_vibrate(int pad, int low, int high)
 }
 
 //Percentage distance of screen to adjust for Konami Gun
-static int KonamiGunAdjustX = 0;
-static int KonamiGunAdjustY = 0;
+static float KonamiGunAdjustX = 0;
+static float KonamiGunAdjustY = 0;
 
 void pl_gun_byte2(int port, unsigned char byte)
 {
@@ -554,6 +565,8 @@ void pl_gun_byte2(int port, unsigned char byte)
    float justifier_multiplier = 0;
    int justifier_width = psx_w;
    int justifier_height = psx_h;
+   int justifier_offscreen = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN);
+   int justifier_reload = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD);
 
    if (justifier_width == 256)
       justifier_multiplier = is_pal_mode ? .157086f : .158532f;
@@ -569,10 +582,11 @@ void pl_gun_byte2(int port, unsigned char byte)
    int gunx = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
    int guny = input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
-   int gunx_scaled = (gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier) + 105.0f + (KonamiGunAdjustX * justifier_width / (100.0f * justifier_multiplier));
-   int guny_scaled = (guny + 32767.0f) * justifier_height / 65534.0f - 12.0f + (KonamiGunAdjustY * justifier_height / 100.0f);
+   //Default offset of +105 for X and -12 for Y is chosen to obtain alignment in Die Hard Trilogy, which has no calibration feature
+   int gunx_scaled = (gunx + 32767.0f) * justifier_width / (65534.0f * justifier_multiplier) + 105.0f + KonamiGunAdjustX * justifier_width / justifier_multiplier;
+   int guny_scaled = (guny + 32767.0f) * justifier_height / 65534.0f - 12.0f + KonamiGunAdjustY * justifier_height;
 
-   if ((byte & 0x10) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN)) && !(input_state_cb(port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD)))
+   if ((byte & 0x10) && !justifier_offscreen && !justifier_reload)
    {
       psxScheduleIrq10(irq_count, gunx_scaled, guny_scaled);
    }
@@ -2436,7 +2450,7 @@ static void update_variables(bool in_flight)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
-      KonamiGunAdjustX = atoi(var.value);
+      KonamiGunAdjustX = atof(var.value) / 100.0f;
    }
 
    var.value = NULL;
@@ -2444,7 +2458,7 @@ static void update_variables(bool in_flight)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
-      KonamiGunAdjustY = atoi(var.value);
+      KonamiGunAdjustY = atof(var.value) / 100.0f;
    }
 
    var.value = NULL;
