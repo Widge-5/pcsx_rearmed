@@ -299,7 +299,7 @@ static void vout_flip(const void *vram, int stride, int bgr24,
    int dstride = vout_width, h1 = h;
    int port = 0;
 
-   if (vram == NULL || dims_changed)
+   if (vram == NULL || dims_changed || (in_enable_crosshair[0] + in_enable_crosshair[1]) > 0)
    {
       memset(vout_buf_ptr, 0, dstride * vout_height * 2);
       // blanking
