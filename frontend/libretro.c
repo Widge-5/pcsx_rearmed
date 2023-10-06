@@ -63,7 +63,7 @@
 #define INTERNAL_FPS_SAMPLE_PERIOD 64
 
 //hack to prevent retroarch freezing when reseting in the menu but not while running with the hot key
-static int rebootemu = 0;
+static int rebootemu = 3;
 
 static retro_video_refresh_t video_cb;
 static retro_input_poll_t input_poll_cb;
