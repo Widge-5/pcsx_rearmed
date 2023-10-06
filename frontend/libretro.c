@@ -561,7 +561,7 @@ static float KonamiGunAdjustY = 0;
 
 void pl_gun_byte2(int port, unsigned char byte)
 {
-   int irq_count = 4;
+   int irq_count = 20;
    float justifier_multiplier = 0;
    int justifier_width = psx_w;
    int justifier_height = psx_h;
